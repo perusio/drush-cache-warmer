@@ -523,23 +523,23 @@ function cache_warmer_execute($base_uri = '') {
       break;
     case FALSE:
       return drush_set_error('CACHE_WARMER_DRUPAL_VERSION_FAIL',
-                             dt('Cannot determine the drupal version.'));
+                             dt('Cannot determine the Drupal version.'));
     default:
       return drush_set_error('CACHE_WARMER_DRUPAL_VERSION_FAIL',
-                             dt('Unsupported drupal version.'));
+                             dt('Unsupported Drupal version.'));
   } // switch
   // Debug
   drush_print_r($items);
   // Crawling the given URIs.
   if ($parallel == 0) {
     // cURL invocation for single threaded mode.
-    $r = json_encode(cache_warmer_crawl_single($base_url, $items, $hub_pages, $timeout));
+    return json_encode(cache_warmer_crawl_single($base_url, $items, $hub_pages, $timeout));
+
   }
   else {
     // cURL invocation for parallel mode. (POST to Lua location.)
-    $r = json_encode(cache_warmer_crawl_multiple($base_url, $items, $hub_pages,
-                                                 $timeout, $parallel, $crawler_service_uri));
+    return json_encode(cache_warmer_crawl_multiple($base_url, $items, $hub_pages,
+                                                   $timeout, $parallel, $crawler_service_uri)
+    );
   }
-
-  drush_print_r($r);
 } // cache_warmer_execute
