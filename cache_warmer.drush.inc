@@ -402,7 +402,7 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
     $all_uris[$i] = $hub_pages_uris[$i];
   }
   for ($i = $m; $i < $n * $m; $i++) {
-    $all_uris[$i] = $hub_pages_uris[$i];
+    $all_uris[$i] = $uris[$i];
   }
 
   // cURL request basic options.
