@@ -221,7 +221,6 @@ function cache_warmer_get_items_drupal7($db_spec = NULL, $latest = 0, $updated =
   if ($no_aliases) {
     return $items_uris;
   }
-
   // Get all the aliases. Return the result as a keyed array: 'source' =>
   // 'alias'.
   $pairs = db_select('url_alias', 'a')
@@ -252,16 +251,20 @@ function cache_warmer_get_items_drupal7($db_spec = NULL, $latest = 0, $updated =
  *   The array of records that fit the criteria specified containing the URIs.
  */
 function cache_warmer_get_items_drupal6($db_spec = NULL, $latest = 0, $updated = 0, $no_aliases = FALSE) {
+
   $items_latest = array();
   $items_updated = array();
 
   if ($latest > 0) {
     $result_latest = db_query_range('SELECT nid FROM {node} ORDER BY changed DESC', 0, $latest);
     $num_latest = db_result(
-      db_query_range('SELECT COUNT(nid) FROM {node} ORDER BY changed DESC', 0, $latest));
+      db_query_range('SELECT COUNT(nid) FROM {node} ORDER BY changed DESC', 0, $latest)
+    );
   }
   if ($updated > 0) {
-    $result_updated = db_query("SELECT nid FROM {node} ORDER BY changed DESC WHERE changed <= '%d'", $updated);
+    $result_updated = db_query(
+      "SELECT nid FROM {node} ORDER BY changed DESC WHERE changed <= '%d'", $updated
+    );
     $num_updated = db_result(
       db_query("SELECT COUNT(nid) FROM {node} ORDER BY changed DESC WHERE changed <= '%d'", $updated)
     );
@@ -277,9 +280,6 @@ function cache_warmer_get_items_drupal6($db_spec = NULL, $latest = 0, $updated =
   if ($no_aliases) {
     return $items_uris;
   }
-
-  print_r($items_uris);
-
   // Get all the aliases. Return the result as a keyed array: 'src' =>
   // 'dst'.
   $result_aliases =
@@ -336,13 +336,13 @@ function cache_warmer_crawl_single($base_uri = '', $uris = array(), $hub_pages =
     // Crawl the hub pages URIs.
     while (($line = fgets($fp)) !== FALSE) {
       $uri = trim($line); // remove white space on both ends
-      curl_setopt($ch, CURLOPT_URL, $base_uri . '/' . $uri);
-      curl_exec($ch);
       // Create an object to store the request result.
       $request = new stdClass();
+      $request->timestamp = $_SERVER['REQUEST_TIME'];
+      curl_setopt($ch, CURLOPT_URL, $base_uri . '/' . $uri);
+      curl_exec($ch);
       $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
       $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-      $request->timestamp = $_SERVER['REQUEST_TIME'];
       $requests[$uri] = $request;
     }
     // Close the file handle.
@@ -350,13 +350,13 @@ function cache_warmer_crawl_single($base_uri = '', $uris = array(), $hub_pages =
   }
   // Main loop. We store the total request time and status.
   foreach ($uris as $uri) {
-    curl_setopt($ch, CURLOPT_URL, $base_uri . '/' . $uri);
-    curl_exec($ch);
     // Create an object to store the request result.
     $request = new stdClass();
+    $request->timestamp = $_SERVER['REQUEST_TIME'];
+    curl_setopt($ch, CURLOPT_URL, $base_uri . '/' . $uri);
+    curl_exec($ch);
     $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-    $request->timestamp = $_SERVER['REQUEST_TIME'];
     $requests[$uri] = $request;
   }
   // Release the cURL handler.
@@ -425,13 +425,13 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
     }
     // Create an object to store the request result.
     $request = new stdClass();
+    $request->timestamp = $_SERVER['REQUEST_TIME'];
     // Make the POST request.
     curl_setopt(CURL_POSTFIELDS, $post_data);
     $request->reply = curl_exec($ch);
     // Get the remainder of the request information.
     $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-    $request->timestamp = $_SERVER['REQUEST_TIME'];
     $request->reply = curl_exec($ch);
     $requests[$i] = $request;
   }
@@ -443,13 +443,13 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
     }
     // Create an object to store the request result.
     $request = new stdClass();
+    $request->timestamp = $_SERVER['REQUEST_TIME'];
     // Make the POST request.
     curl_setopt(CURL_POSTFIELDS, $post_data);
     $request->reply = curl_exec($ch);
     // Get the remainder of the request information.
     $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-    $request->timestamp = $_SERVER['REQUEST_TIME'];
     $request->reply = curl_exec($ch);
     $requests[$i] = $request;
   } // if
@@ -539,7 +539,6 @@ function cache_warmer_execute($base_uri = '') {
   else {
     // cURL invocation for parallel mode. (POST to Lua location.)
     return json_encode(cache_warmer_crawl_multiple($base_url, $items, $hub_pages,
-                                                   $timeout, $parallel, $crawler_service_uri)
-    );
+                                                   $timeout, $parallel, $crawler_service_uri));
   }
 } // cache_warmer_execute
