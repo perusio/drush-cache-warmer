@@ -387,7 +387,7 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
 
   // Getting the number of URIs to be processed each time.
   $hub_pages_uris = explode("\n", file_get_contents($hub_pages));
-  $t = array_pop($hub_pages_uris); // temp var necessary for PHP :(
+  $temp = array_pop($hub_pages_uris); // temp var necessary for PHP :(
   $m = count($hub_pages_uris);
   $n = count($uris);
   $rem = ($n + $m) % $parallel;
@@ -398,13 +398,14 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
 
   // Create a new array with shifted elements.
   $all_uris = array();
+  // First the hub pages.
   for ($i = 0; $i < $m; $i++) {
     $all_uris[$i] = $hub_pages_uris[$i];
   }
-  for ($i = $m; $i < $n * $m; $i++) {
-    $all_uris[$i] = $uris[$i];
+  // The other URIs after.
+  for ($i = 0; $i < $n; $i++) {
+    $all_uris[$i + $m] = $uris[$i];
   }
-
   // cURL request basic options.
   curl_setopt_array($ch,
                     array(CURLOPT_POST => TRUE, // POST request.
@@ -447,7 +448,7 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
     $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
     $request->reply = curl_exec($ch);
     $requests[$i] = $request;
-  }
+  } // if
   // Release the cURL handler.
   curl_close($ch);
 
@@ -460,8 +461,8 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
  * @param $base_uri string
  *   The base URI of the site being crawled.
  *
- * @return nothing
- *   Side effects only.
+ * @return string
+ *   The request responses, status and timeouts in JSON format.
  */
 function cache_warmer_execute($base_uri = '') {
 
@@ -524,7 +525,7 @@ function cache_warmer_execute($base_uri = '') {
                              dt('Unsupported drupal version.'));
   } // switch
   // Debug
-  print_r($items);
+  drush_print_r($items);
   // Crawling the given URIs.
   if ($parallel == 0) {
     // cURL invocation for single threaded mode.
@@ -536,5 +537,5 @@ function cache_warmer_execute($base_uri = '') {
                                      $timeout, $parallel, $crawler_service_uri);
   }
 
-  print_r($r);
+  drush_print_r($r);
 } // cache_warmer_execute
