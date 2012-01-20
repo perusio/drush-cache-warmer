@@ -342,6 +342,7 @@ function cache_warmer_crawl_single($base_uri = '', $uris = array(), $hub_pages =
       $request = new stdClass();
       $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
       $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
+      $request->timestamp = $_SERVER['REQUEST_TIME'];
       $requests[$uri] = $request;
     }
     // Close the file handle.
@@ -355,6 +356,7 @@ function cache_warmer_crawl_single($base_uri = '', $uris = array(), $hub_pages =
     $request = new stdClass();
     $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
+    $request->timestamp = $_SERVER['REQUEST_TIME'];
     $requests[$uri] = $request;
   }
   // Release the cURL handler.
@@ -429,6 +431,7 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
     // Get the remainder of the request information.
     $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
+    $request->timestamp = $_SERVER['REQUEST_TIME'];
     $request->reply = curl_exec($ch);
     $requests[$i] = $request;
   }
@@ -446,6 +449,7 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
     // Get the remainder of the request information.
     $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
+    $request->timestamp = $_SERVER['REQUEST_TIME'];
     $request->reply = curl_exec($ch);
     $requests[$i] = $request;
   } // if
@@ -529,12 +533,12 @@ function cache_warmer_execute($base_uri = '') {
   // Crawling the given URIs.
   if ($parallel == 0) {
     // cURL invocation for single threaded mode.
-    $r = cache_warmer_crawl_single($base_url, $items, $hub_pages, $timeout);
+    $r = json_encode(cache_warmer_crawl_single($base_url, $items, $hub_pages, $timeout));
   }
   else {
     // cURL invocation for parallel mode. (POST to Lua location.)
-    $r = cache_warmer_crawl_multiple($base_url, $items, $hub_pages,
-                                     $timeout, $parallel, $crawler_service_uri);
+    $r = json_encode(cache_warmer_crawl_multiple($base_url, $items, $hub_pages,
+                                                 $timeout, $parallel, $crawler_service_uri));
   }
 
   drush_print_r($r);
