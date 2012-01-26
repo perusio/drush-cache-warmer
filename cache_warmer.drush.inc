@@ -174,8 +174,8 @@ function cache_warmer_check_arguments($base_uri = '', $latest = 0 , $updated = 0
 } // cache_warmer_check_arguments
 
 /**
- * Gets the array with the URIs of the items to be hit by the crawler for
- * Drupal 7.
+ * Gets the array with the URIs of the items to be hit when both the latest n
+ * and updated in the latest specified time for Drupal 7.
  *
  * @param $db_spec array
  *   The DB connection parameters.
@@ -186,30 +186,28 @@ function cache_warmer_check_arguments($base_uri = '', $latest = 0 , $updated = 0
  * @return array
  *   The array of records that fit the criteria specified containing the URIs.
  */
-function cache_warmer_get_items_drupal7($db_spec = NULL, $latest = 0, $updated = 0, $no_aliases = FALSE) {
+function cache_warmer_get_items_drupal7_both($db_spec = NULL,
+                                             $latest = 0,
+                                             $updated = 0,
+                                             $no_aliases = FALSE) {
 
   $items_latest = array();
   $items_updated = array();
 
-  // Currently DBTNG doesn't support sub SELECT statements. See
-  // http://drupal.org/node/1267508. We need to split the query in two
-  // parts. First we get the nodes IDS and then we get the aliases.
-  if ($latest > 0) {
-    $items_latest = db_select('node', 'n')
-      ->fields('n', array('nid'))
-      ->orderBy('changed', 'DESC')
-      ->range(0, $latest)
-      ->execute()
-      ->fetchAll();
-  }
-  if ($updated > 0) {
-    $items_updated = db_select('node', 'n')
-      ->fields('n', array('nid'))
-      ->condition('changed', $updated, '>=')
-      ->orderBy('changed', 'DESC')
-      ->execute()
-      ->fetchAll();
-  }
+  $items_latest = db_select('node', 'n')
+    ->fields('n', array('nid'))
+    ->orderBy('changed', 'DESC')
+    ->range(0, $latest)
+    ->execute()
+    ->fetchAll();
+
+  $items_updated = db_select('node', 'n')
+    ->fields('n', array('nid'))
+    ->condition('changed', $updated, '>=')
+    ->orderBy('changed', 'DESC')
+    ->execute()
+    ->fetchAll();
+
   // Whichever is greater is used.
   $items = count($items_updated) > count($items_latest) ? $items_updated : $items_latest;
   // Get just the node URIs.
@@ -235,11 +233,88 @@ function cache_warmer_get_items_drupal7($db_spec = NULL, $latest = 0, $updated =
   }
 
   return $aliases;
+} // cache_warmer_get_items_drupal7_both
+
+/**
+ * Gets the array with the URIs of the items to be hit by the crawler for
+ * Drupal 7.
+ *
+ * @param $db_spec array
+ *   The DB connection parameters.
+ * @param $latest integer
+ *   The number of the latest items to crawl.
+ * @param $updated integer
+ *   The elapsed time in seconds since the first item we want to crawl.
+ * @return array
+ *   The array of records that fit the criteria specified containing the URIs.
+ */
+function cache_warmer_get_items_drupal7($db_spec = NULL, $latest = 0, $updated = 0, $no_aliases = FALSE) {
+
+  // If both the latest and last n updated are given we perform the DB lookup
+  // using subqueries.
+  if ($latest > 0 && $updated > 0) {
+    if ($no_aliases) {
+      return cache_warmer_get_items_drupal7_both($db_spec, $latest, $updated, $no_aliases);
+    }
+    $result_aliases = cache_warmer_get_items_drupal7_both($db_spec, $latest, $updated, $no_aliases);
+  }
+  elseif ($updated > 0) {
+    // If no aliases are used then just get the node IDs.
+    if ($no_aliases) {
+      $result = db_select('node', 'n')
+        ->fields('n', array('nid'))
+        ->condition('changed', $updated, '>=')
+        ->orderBy('changed', 'DESC')
+        ->execute()
+        ->fetchAll();
+    }
+    else {
+      // Use a JOIN there are aliases.
+      $select = db_select('url_alias', 'a')
+        ->fields('a', array('source', 'alias'))
+        ->condition('changed', $updated, '>=');
+      $pairs = $select->join('node', 'n', 'SUBSTR(a.src, 6) = n.nid')
+        ->orderBy('changed', 'DESC')
+        ->execute()
+        ->fetchAllKeyed();
+    }
+  }
+  else {
+    if ($no_aliases) {
+      // If no aliases are used then just get the node IDs.
+      $result = db_select('node', 'n')
+        ->fields('n', array('nid'))
+        ->orderBy('changed', 'DESC')
+        ->range(0, $latest)
+        ->execute()
+        ->fetchAll();
+    }
+    else {
+      // Use a JOIN if there are aliases.
+      $select = db_select('url_alias', 'a')->fields('a', array('source', 'alias'));
+      $pairs = $select->join('node', 'n', 'SUBSTR(a.src, 6) = n.nid')
+        ->orderBy('changed', 'DESC')
+        ->range(0, $latest)
+        ->execute()
+        ->fetchAllKeyed();
+    }
+  }
+  // If no aliases return node IDs in an array.
+  if ($no_aliases) {
+    $items_uris = array();
+    // Fill up the array with the node IDs.
+    while ($node_record = db_fetch_object($result)) {
+      $items_uris[] = 'node/' . $node_record->nid;
+    }
+    return $items_uris;
+  }
+
+  return $pairs;
 } // cache_warmer_get_items_drupal7
 
 /**
  * Gets the array with the URIs of the items to be hit when both the latest n
- * and updated in the latest specified time.
+ * and updated in the latest specified time for Drupal 6.
  *
  * @param $db_spec array
  *   The DB connection parameters.
@@ -266,7 +341,7 @@ function cache_warmer_get_items_drupal6_both($db_spec = NULL,
     "SELECT nid FROM {node} ORDER BY changed DESC WHERE changed <= '%d'", $updated
   );
   $num_updated = db_result(
-    db_query("SELECT COUNT(nid) FROM {node} ORDER BY changed DESC WHERE changed <= '%d'", $updated)
+    db_query("SELECT COUNT(nid) FROM {node} ORDER BY changed DESC WHERE changed >= '%d'", $updated)
   );
   // Whichever is greater is used.
   $result = $num_updated > $num_latest ? $result_updated : $result_latest;
@@ -316,12 +391,12 @@ function cache_warmer_get_items_drupal6($db_spec = NULL, $latest = 0, $updated =
   elseif ($updated > 0) {
     // If no aliases are used then just get the node IDs.
     if ($no_aliases) {
-      $result = db_query("SELECT nid from {node} WHERE changed < '%d' ORDER BY changed DESC", $updated);
+      $result = db_query("SELECT nid from {node} WHERE changed >= '%d' ORDER BY changed DESC", $updated);
     }
     else {
       // Use a JOIN there are aliases.
       $result_aliases = db_query(
-        "SELECT src, dst FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.src, 6) = n.nid ORDER BY changed DESC WHERE changed < '%d'", $updated
+        "SELECT src, dst FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.src, 6) = n.nid ORDER BY changed DESC WHERE changed >= '%d'", $updated
       );
     }
   }
