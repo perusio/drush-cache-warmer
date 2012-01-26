@@ -9,6 +9,22 @@
  *
  */
 
+// __DIR__ was introduced in PHP 5.3.0.
+if (!defined('__DIR__')) {
+  define('__DIR__', dirname(__FILE__));
+}
+// Include the necessary files.
+if (drupal_major_version() == '7') { // drupal 7
+  if (!function_exists('cache_warmer_get_items_drupal7_both')) {
+    require_once __DIR__ . '/includes/cache_warmer_db7.inc';
+  }
+}
+else { // drupal 6 and 5
+  if (!function_exists('cache_warmer_get_items_drupal6_both')) {
+    require_once __DIR__ . '/includes/cache_warmer_db6.inc';
+  }
+}
+
 // The default timeout in seconds for each request.
 define('CACHE_WARMER_DEFAULT_TIMEOUT', 20);
 
@@ -172,263 +188,6 @@ function cache_warmer_check_arguments($base_uri = '', $latest = 0 , $updated = 0
 
   return $url_check;
 } // cache_warmer_check_arguments
-
-/**
- * Gets the array with the URIs of the items to be hit when both the latest n
- * and updated in the latest specified time for Drupal 7.
- *
- * @param $db_spec array
- *   The DB connection parameters.
- * @param $latest integer
- *   The number of the latest items to crawl.
- * @param $updated integer
- *   The elapsed time in seconds since the first item we want to crawl.
- * @return array
- *   The array of records that fit the criteria specified containing the URIs.
- */
-function cache_warmer_get_items_drupal7_both($db_spec = NULL,
-                                             $latest = 0,
-                                             $updated = 0,
-                                             $no_aliases = FALSE) {
-
-  $items_latest = array();
-  $items_updated = array();
-
-  $items_latest = db_select('node', 'n')
-    ->fields('n', array('nid'))
-    ->orderBy('changed', 'DESC')
-    ->range(0, $latest)
-    ->execute()
-    ->fetchAll();
-
-  $items_updated = db_select('node', 'n')
-    ->fields('n', array('nid'))
-    ->condition('changed', $updated, '>=')
-    ->orderBy('changed', 'DESC')
-    ->execute()
-    ->fetchAll();
-
-  // Whichever is greater is used.
-  $items = count($items_updated) > count($items_latest) ? $items_updated : $items_latest;
-  // Get just the node URIs.
-  $items_uris = array();
-  foreach($items as $record) {
-    $items_uris[] = 'node/' . $record->nid;
-  }
-  // If the site to be crawled has no aliases return now with the item list.
-  if ($no_aliases) {
-    return $items_uris;
-  }
-  // Get all the aliases. Return the result as a keyed array: 'source' =>
-  // 'alias'.
-  $pairs = db_select('url_alias', 'a')
-    ->fields('a', array('source', 'alias'))
-    ->condition('source', $items_uris, 'IN')
-    ->execute()
-    ->fetchAllKeyed();
-  // Fill up the aliases array. If there's no alias return the original URI.
-  $aliases = array();
-  foreach($items_uris as $src) {
-    $aliases[] = empty($pairs[$src]) ? $src : $pairs[$src];
-  }
-
-  return $aliases;
-} // cache_warmer_get_items_drupal7_both
-
-/**
- * Gets the array with the URIs of the items to be hit by the crawler for
- * Drupal 7.
- *
- * @param $db_spec array
- *   The DB connection parameters.
- * @param $latest integer
- *   The number of the latest items to crawl.
- * @param $updated integer
- *   The elapsed time in seconds since the first item we want to crawl.
- * @return array
- *   The array of records that fit the criteria specified containing the URIs.
- */
-function cache_warmer_get_items_drupal7($db_spec = NULL, $latest = 0, $updated = 0, $no_aliases = FALSE) {
-
-  // If both the latest and last n updated are given we perform the DB lookup
-  // using subqueries.
-  if ($latest > 0 && $updated > 0) {
-    if ($no_aliases) {
-      return cache_warmer_get_items_drupal7_both($db_spec, $latest, $updated, $no_aliases);
-    }
-    $result_aliases = cache_warmer_get_items_drupal7_both($db_spec, $latest, $updated, $no_aliases);
-  }
-  elseif ($updated > 0) {
-    // If no aliases are used then just get the node IDs.
-    if ($no_aliases) {
-      $result = db_select('node', 'n')
-        ->fields('n', array('nid'))
-        ->condition('changed', $updated, '>=')
-        ->orderBy('changed', 'DESC')
-        ->execute()
-        ->fetchAll();
-    }
-    else {
-      // Use a JOIN there are aliases.
-      $select = db_select('url_alias', 'a')
-        ->fields('a', array('source', 'alias'))
-        ->condition('changed', $updated, '>=');
-      $pairs = $select->join('node', 'n', 'SUBSTR(a.src, 6) = n.nid')
-        ->orderBy('changed', 'DESC')
-        ->execute()
-        ->fetchAllKeyed();
-    }
-  }
-  else {
-    if ($no_aliases) {
-      // If no aliases are used then just get the node IDs.
-      $result = db_select('node', 'n')
-        ->fields('n', array('nid'))
-        ->orderBy('changed', 'DESC')
-        ->range(0, $latest)
-        ->execute()
-        ->fetchAll();
-    }
-    else {
-      // Use a JOIN if there are aliases.
-      $select = db_select('url_alias', 'a')->fields('a', array('source', 'alias'));
-      $pairs = $select->join('node', 'n', 'SUBSTR(a.src, 6) = n.nid')
-        ->orderBy('changed', 'DESC')
-        ->range(0, $latest)
-        ->execute()
-        ->fetchAllKeyed();
-    }
-  }
-  // If no aliases return node IDs in an array.
-  if ($no_aliases) {
-    $items_uris = array();
-    // Fill up the array with the node IDs.
-    while ($node_record = db_fetch_object($result)) {
-      $items_uris[] = 'node/' . $node_record->nid;
-    }
-    return $items_uris;
-  }
-
-  return $pairs;
-} // cache_warmer_get_items_drupal7
-
-/**
- * Gets the array with the URIs of the items to be hit when both the latest n
- * and updated in the latest specified time for Drupal 6.
- *
- * @param $db_spec array
- *   The DB connection parameters.
- * @param $latest integer
- *   The number of the latest items to crawl.
- * @param $updated integer
- *   The elapsed time in seconds since the first item we want to crawl.
- * @return array
- *   The array of records that fit the criteria specified containing the URIs.
- */
-function cache_warmer_get_items_drupal6_both($db_spec = NULL,
-                                             $latest = 0,
-                                             $updated = 0,
-                                             $no_aliases = FALSE) {
-
-  $items_latest = array();
-  $items_updated = array();
-
-  $result_latest = db_query_range('SELECT nid FROM {node} ORDER BY changed DESC', 0, $latest);
-  $num_latest = db_result(
-    db_query_range('SELECT COUNT(nid) FROM {node} ORDER BY changed DESC', 0, $latest)
-  );
-  $result_updated = db_query(
-    "SELECT nid FROM {node} ORDER BY changed DESC WHERE changed <= '%d'", $updated
-  );
-  $num_updated = db_result(
-    db_query("SELECT COUNT(nid) FROM {node} ORDER BY changed DESC WHERE changed >= '%d'", $updated)
-  );
-  // Whichever is greater is used.
-  $result = $num_updated > $num_latest ? $result_updated : $result_latest;
-  // Get just the node URIs.
-  $items_uris = array();
-  while($node_record = db_fetch_object($result)) {
-    $items_uris[] = 'node/' . $node_record->nid;
-  }
-
-  // If the site to be crawled has no aliases return now with the item list.
-  if ($no_aliases) {
-    return $items_uris;
-  }
-  // Get all the aliases. Return the result as a keyed array: 'src' =>
-  // 'dst'.
-  $result_aliases =
-    db_query(
-      'SELECT src, dst FROM {url_alias} a WHERE src IN ('
-      .
-      db_placeholders($items_uris, 'int') . ')', $items_uris);
-
-} // cache_warmer_get_items_drupal6_both
-
-/**
- * Gets the array with the URIs of the items to be hit by the crawler for
- * Drupal 6.
- *
- * @param $db_spec array
- *   The DB connection parameters.
- * @param $latest integer
- *   The number of the latest items to crawl.
- * @param $updated integer
- *   The elapsed time in seconds since the first item we want to crawl.
- * @return array
- *   The array of records that fit the criteria specified containing the URIs.
- */
-function cache_warmer_get_items_drupal6($db_spec = NULL, $latest = 0, $updated = 0, $no_aliases = FALSE) {
-
-  // If both the latest and last n updated are given we perform the DB lookup
-  // using subqueries.
-  if ($latest > 0 && $updated > 0) {
-    if ($no_aliases) {
-      return cache_warmer_get_items_drupal6_both($db_spec, $latest, $updated, $no_aliases);
-    }
-    $result_aliases = cache_warmer_get_items_drupal6_both($db_spec, $latest, $updated, $no_aliases);
-  }
-  elseif ($updated > 0) {
-    // If no aliases are used then just get the node IDs.
-    if ($no_aliases) {
-      $result = db_query("SELECT nid from {node} WHERE changed >= '%d' ORDER BY changed DESC", $updated);
-    }
-    else {
-      // Use a JOIN there are aliases.
-      $result_aliases = db_query(
-        "SELECT src, dst FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.src, 6) = n.nid ORDER BY changed DESC WHERE changed >= '%d'", $updated
-      );
-    }
-  }
-  else {
-    if ($no_aliases) {
-      // If no aliases are used then just get the node IDs.
-      $result = db_query_range("SELECT nid from {node} ORDER BY changed DESC", 0, $latest);
-    }
-    else {
-      // Use a JOIN if there are aliases.
-      $result_aliases = db_query_range(
-        "SELECT src, dst FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.src, 6) = n.nid ORDER BY changed DESC", 0, $latest
-      );
-    }
-  }
-  // If no aliases return node IDs in an array.
-  if ($no_aliases) {
-    $items_uris = array();
-    // Fill up the array with the node IDs.
-    while ($node_record = db_fetch_object($result)) {
-      $items_uris[] = 'node/' . $node_record->nid;
-    }
-    return $items_uris;
-  }
-  // Create the array with the results.
-  $pairs = array();
-  while($alias_record = db_fetch_object($result_aliases)) {
-    $pairs[$alias_record->src] = $alias_record->dst;
-  }
-
-  return $pairs;
-} // cache_warmer_get_items_drupal6
 
 /**
  * Crawls the site using the given list of URIs using a single thread.
