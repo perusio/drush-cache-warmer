@@ -120,8 +120,8 @@ function cache_warmer_validate_url($url = '') {
                            dt('Fragment @fragment not allowed.',
                               array('@fragment' => $components['fragment'])));
   }
-
-  return $base_uri;
+  // Strip the trailing '/' if it exists.
+  return trim($base_uri, '/');
 } // cache_warmer_validate_url
 
 /**
@@ -389,6 +389,8 @@ function cache_warmer_crawl_single($base_uri = '', $uris = array(), $hub_pages =
     // Crawl the hub pages URIs.
     while (($line = fgets($fp)) !== FALSE) {
       $uri = trim($line); // remove white space on both ends
+      // If the uri is '<front>' then it's a special case. The front page.
+      $uri = $uri == '<front>' ? '' : $uri;
       // Create an object to store the request result.
       $request = new stdClass();
       $request->timestamp = $_SERVER['REQUEST_TIME'];
