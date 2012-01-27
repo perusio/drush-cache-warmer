@@ -424,7 +424,7 @@ function cache_warmer_execute($base_uri = '') {
   } // switch
   // Debug
   drush_print_r($items);
-  return;
+
   // Crawling the given URIs.
   if ($parallel == 0) {
     // cURL invocation for single threaded mode.
