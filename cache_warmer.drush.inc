@@ -14,14 +14,6 @@ if (!defined('__DIR__')) {
   define('__DIR__', dirname(__FILE__));
 }
 
-// Include the DB handling functions.
-if (!function_exists('cache_warmer_get_items_drupal7_both')) {
-  require_once __DIR__ . '/includes/cache_warmer_db7.inc';
-}
-if (!function_exists('cache_warmer_get_items_drupal6_both')) {
-  require_once __DIR__ . '/includes/cache_warmer_db6.inc';
-}
-
 // The default timeout in seconds for each request.
 define('CACHE_WARMER_DEFAULT_TIMEOUT', 20);
 
@@ -275,9 +267,10 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
 
   // Getting the number of URIs to be processed each time.
   $hub_pages_uris = explode("\n", file_get_contents($hub_pages));
+  // Remove the last element. It's a '\n'.
   $temp = array_pop($hub_pages_uris); // temp var necessary for PHP :(
-  $m = count($hub_pages_uris);
-  $n = count($uris);
+  $m = count($hub_pages_uris); // number of hub pages
+  $n = count($uris); // number of URIs
   $rem = ($n + $m) % $parallel;
   $steps = ($n + $m - $rem) / $parallel; // integer division
   // Getting the timeout of each step. Multiply each request timeout by the
@@ -288,7 +281,8 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
   $all_uris = array();
   // First the hub pages.
   for ($i = 0; $i < $m; $i++) {
-    $all_uris[$i] = $hub_pages_uris[$i];
+    // The front page is a special case.
+    $all_uris[$i] = $hub_pages_uris[$i] != '<front>' ? $hub_pages_uris[$i] : '';
   }
   // The other URIs after.
   for ($i = 0; $i < $n; $i++) {
@@ -409,10 +403,18 @@ function cache_warmer_execute($base_uri = '') {
 
   switch ($drupal_version) {
     case '7':
+      // Include the DB handling functions.
+      if (!function_exists('cache_warmer_get_items_drupal7_both')) {
+        require_once __DIR__ . '/includes/cache_warmer_db7.inc';
+      }
       $items = cache_warmer_get_items_drupal7(_drush_sql_get_db_spec(), $latest, $updated, $no_aliases);
       break;
     case '6':
     case '5':
+      // Include the DB handling functions.
+      if (!function_exists('cache_warmer_get_items_drupal6_both')) {
+        require_once __DIR__ . '/includes/cache_warmer_db6.inc';
+      }
       $items = cache_warmer_get_items_drupal6(_drush_sql_get_db_spec(), $latest, $updated, $no_aliases);
       break;
     case FALSE:

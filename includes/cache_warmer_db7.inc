@@ -49,11 +49,8 @@ function cache_warmer_get_items_drupal7_both($db_spec = NULL,
   }
   // Get all the aliases. Return the result as a keyed array: 'source' =>
   // 'alias'.
-  $pairs = db_select('url_alias', 'a')
-    ->fields('a', array('source', 'alias'))
-    ->condition('source', $items_uris, 'IN')
-    ->execute()
-    ->fetchAllKeyed();
+  $pairs = db_query('SELECT source, alias FROM {url_alias} WHERE source IN (:uris)',
+                    array(':uris' => $items_uris))->fetchAllKeyed();
 
   // Fill up the aliases array. If there's no alias return the original URI.
   $aliases = array();
