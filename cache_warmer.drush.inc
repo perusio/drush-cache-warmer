@@ -13,16 +13,13 @@
 if (!defined('__DIR__')) {
   define('__DIR__', dirname(__FILE__));
 }
-// Include the necessary files.
-if (drupal_major_version() == '7') { // drupal 7
-  if (!function_exists('cache_warmer_get_items_drupal7_both')) {
-    require_once __DIR__ . '/includes/cache_warmer_db7.inc';
-  }
+
+// Include the DB handling functions.
+if (!function_exists('cache_warmer_get_items_drupal7_both')) {
+  require_once __DIR__ . '/includes/cache_warmer_db7.inc';
 }
-else { // drupal 6 and 5
-  if (!function_exists('cache_warmer_get_items_drupal6_both')) {
-    require_once __DIR__ . '/includes/cache_warmer_db6.inc';
-  }
+if (!function_exists('cache_warmer_get_items_drupal6_both')) {
+  require_once __DIR__ . '/includes/cache_warmer_db6.inc';
 }
 
 // The default timeout in seconds for each request.

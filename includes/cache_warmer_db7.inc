@@ -30,19 +30,10 @@ function cache_warmer_get_items_drupal7_both($db_spec = NULL,
   $items_latest = array();
   $items_updated = array();
 
-  $items_latest = db_select('node', 'n')
-    ->fields('n', array('nid'))
-    ->orderBy('changed', 'DESC')
-    ->range(0, $latest)
-    ->execute()
-    ->fetchAll();
-
-  $items_updated = db_select('node', 'n')
-    ->fields('n', array('nid'))
-    ->condition('changed', $updated, '>=')
-    ->orderBy('changed', 'DESC')
-    ->execute()
-    ->fetchAll();
+  $items_latest = db_query_range(
+    'SELECT nid FROM {node} n ORDER BY changed DESC', 0, $latest)->fetchAll();
+  $items_updated = db_query('SELECT nid FROM {node} n WHERE changed >= :changed ORDER BY changed DESC ',
+                            array(':changed' => $updated))->fetchAll();
 
   // Whichever is greater is used.
   $items = count($items_updated) > count($items_latest) ? $items_updated : $items_latest;
@@ -51,6 +42,7 @@ function cache_warmer_get_items_drupal7_both($db_spec = NULL,
   foreach($items as $record) {
     $items_uris[] = 'node/' . $record->nid;
   }
+
   // If the site to be crawled has no aliases return now with the item list.
   if ($no_aliases) {
     return $items_uris;
@@ -62,6 +54,7 @@ function cache_warmer_get_items_drupal7_both($db_spec = NULL,
     ->condition('source', $items_uris, 'IN')
     ->execute()
     ->fetchAllKeyed();
+
   // Fill up the aliases array. If there's no alias return the original URI.
   $aliases = array();
   foreach($items_uris as $src) {
@@ -89,49 +82,29 @@ function cache_warmer_get_items_drupal7($db_spec = NULL, $latest = 0, $updated =
   // If both the latest and last n updated are given we perform the DB lookup
   // using subqueries.
   if ($latest > 0 && $updated > 0) {
-    if ($no_aliases) {
-      return cache_warmer_get_items_drupal7_both($db_spec, $latest, $updated, $no_aliases);
-    }
-    $result_aliases = cache_warmer_get_items_drupal7_both($db_spec, $latest, $updated, $no_aliases);
+    return cache_warmer_get_items_drupal7_both($db_spec, $latest, $updated, $no_aliases);
   }
   elseif ($updated > 0) {
     // If no aliases are used then just get the node IDs.
     if ($no_aliases) {
-      $result = db_select('node', 'n')
-        ->fields('n', array('nid'))
-        ->condition('changed', $updated, '>=')
-        ->orderBy('changed', 'DESC')
-        ->execute()
-        ->fetchAll();
+      $result = db_query('SELECT nid FROM {node} n WHERE changed >= :changed ORDER BY changed DESC ',
+                         array(':changed' => $updated))->fetchAll();
     }
     else {
       // Use a JOIN there are aliases.
-      $select = db_select('url_alias', 'a')
-        ->fields('a', array('source', 'alias'))
-        ->condition('changed', $updated, '>=');
-      $pairs = $select->join('node', 'n', 'SUBSTR(a.src, 6) = n.nid')
-        ->orderBy('changed', 'DESC')
-        ->execute()
-        ->fetchAllKeyed();
+      $pairs = db_query(
+        'SELECT source, alias FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.source, 6) = n.nid WHERE changed >= :changed ORDER BY changed DESC',
+        array(':changed' => $updated))->fetchAllKeyed();
     }
   }
   else {
     if ($no_aliases) {
       // If no aliases are used then just get the node IDs.
-      $result = db_select('node', 'n')
-        ->fields('n', array('nid'))
-        ->orderBy('changed', 'DESC')
-        ->range(0, $latest)
-        ->execute()
-        ->fetchAll();
+      $result = db_query_range('SELECT nid FROM {node} n ORDER BY changed DESC', 0, $latest)->fetchAll();
     }
     else {
       // Use a JOIN if there are aliases.
-      $select = db_select('url_alias', 'a')->fields('a', array('source', 'alias'));
-      $pairs = $select->join('node', 'n', 'SUBSTR(a.src, 6) = n.nid')
-        ->orderBy('changed', 'DESC')
-        ->range(0, $latest)
-        ->execute()
+      $pairs = db_query_range('SELECT source, alias FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.source, 6) = n.nid ORDER BY changed DESC', 0, $latest)
         ->fetchAllKeyed();
     }
   }
@@ -139,7 +112,7 @@ function cache_warmer_get_items_drupal7($db_spec = NULL, $latest = 0, $updated =
   if ($no_aliases) {
     $items_uris = array();
     // Fill up the array with the node IDs.
-    while ($node_record = db_fetch_object($result)) {
+    foreach ($result as $node_record) {
       $items_uris[] = 'node/' . $node_record->nid;
     }
     return $items_uris;
