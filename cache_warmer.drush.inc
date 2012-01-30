@@ -306,7 +306,8 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
     for ($j = 0; $j < $parallel; $j++) {
       $post_data["data$j"] = $all_uris[$j + ($i * $parallel)];
     }
-
+    // Send the base URI as a specific field.
+    $post_data['base_uri'] = $base_uri;
     // Create an object to store the request result.
     $request = new stdClass();
     $request->timestamp = $_SERVER['REQUEST_TIME'];
@@ -325,6 +326,8 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
     for ($k = 0; $k < $rem; $k++) {
       $post_data["data$k"] = $all_uris[$k + $steps * $parallel];
     }
+    // Send the base URI as a specific field.
+    $post_data['base_uri'] = $base_uri;
     // Create an object to store the request result.
     $request = new stdClass();
     $request->timestamp = $_SERVER['REQUEST_TIME'];
@@ -391,6 +394,8 @@ function cache_warmer_execute($base_uri = '') {
   }
   // Whether or not the site has aliases.
   $no_aliases = drush_get_option('no-aliases') ? TRUE : FALSE;
+  // Trace the execution for debugging purposes.
+  $trace = drush_get_option('trace') ? TRUE : FALSE;
   // Check the arguments.
   $base_url = cache_warmer_check_arguments($base_uri, $latest, $updated, $hub_pages);
   if (!$base_url) {
@@ -398,8 +403,18 @@ function cache_warmer_execute($base_uri = '') {
                     dt('Cannot determine base URI to be crawled.'));
   }
   // Print the arguments (debug).
-  drush_print_r(array($latest, $updated, $hub_pages, $base_url, $timeout, $parallel));
-
+  if ($trace) {
+    drush_print('Arguments');
+    drush_print_r(array('latest-n' => $latest,
+                        'updated-last' => $updated,
+                        'hub-pages-file' => $hub_pages,
+                        'base-uri' => $base_url,
+                        'timeout' => $timeout,
+                        'parallel' => $parallel,
+                        'crawler-service-uri' => $crawler_service_uri,
+                        'trace' => $trace,
+                  ));
+  }
   // Getting the URIs to be hit. First we get the drupal major version.
   $items = array();
   $drupal_version = drush_drupal_major_version();
@@ -427,8 +442,11 @@ function cache_warmer_execute($base_uri = '') {
       return drush_set_error('CACHE_WARMER_DRUPAL_VERSION_FAIL',
                              dt('Unsupported Drupal version.'));
   } // switch
-  // Debug
-  drush_print_r($items);
+
+  if ($trace) { // print the DB items: debug tracing
+    drush_print('Items to be hit (DB)');
+    drush_print_r($items);
+  }
 
   // Crawling the given URIs.
   if ($parallel == 0) {
