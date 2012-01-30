@@ -35,7 +35,6 @@ function cache_warmer_drush_help($section) {
  */
 function cache_warmer_drush_command() {
   $items = array();
-  $options = array();
   // The command options.
   $options = array(
     'latest-n' => 'Hit the URIs latest <n> content items: keep the cache primed with them',
@@ -263,7 +262,6 @@ function cache_warmer_crawl_single($base_uri = '', $uris = array(), $hub_pages =
  */
 function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages = '',
                                      $timeout, $parallel, $crawler_uri) {
-  $requests = array();
 
   // Getting the number of URIs to be processed each time.
   $hub_pages_uris = explode("\n", file_get_contents($hub_pages));
@@ -284,17 +282,22 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
     // The front page is a special case.
     $all_uris[$i] = $hub_pages_uris[$i] != '<front>' ? $hub_pages_uris[$i] : '';
   }
+
   // The other URIs after.
+  $uris_keys = array_keys($uris);
   for ($i = 0; $i < $n; $i++) {
-    $all_uris[$i + $m] = $uris[$i];
+    $all_uris[$i + $m] = $uris[$uris_keys[$i]];
   }
+
+  $ch = curl_init();
   // cURL request basic options.
   curl_setopt_array($ch,
                     array(CURLOPT_POST => TRUE, // POST request.
                           CURLOPT_TIMEOUT => $step_timeout,
                           CURLOPT_RETURNTRANSFER => TRUE,
-                          CURLOPT_URL, $crawler_uri,
+                          CURLOPT_URL => $crawler_uri,
                     ));
+
   // Main loop posting the requests according to the given parallel processes.
   $post_data = array();
   $requests = array();
@@ -303,34 +306,34 @@ function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages
     for ($j = 0; $j < $parallel; $j++) {
       $post_data["data$j"] = $all_uris[$j + ($i * $parallel)];
     }
+
     // Create an object to store the request result.
     $request = new stdClass();
     $request->timestamp = $_SERVER['REQUEST_TIME'];
     // Make the POST request.
-    curl_setopt(CURL_POSTFIELDS, $post_data);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data, '', '&'));
     $request->reply = curl_exec($ch);
     // Get the remainder of the request information.
     $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-    $request->reply = curl_exec($ch);
     $requests[$i] = $request;
   }
+
   // The remainder of the URIs to be hit.
   if ($rem > 0) {
     $post_data = array();
     for ($k = 0; $k < $rem; $k++) {
-      $post_data["data$k"] = $all_uris[$j + $steps * $parallel];
+      $post_data["data$k"] = $all_uris[$k + $steps * $parallel];
     }
     // Create an object to store the request result.
     $request = new stdClass();
     $request->timestamp = $_SERVER['REQUEST_TIME'];
     // Make the POST request.
-    curl_setopt(CURL_POSTFIELDS, $post_data);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data, '', '&'));
     $request->reply = curl_exec($ch);
     // Get the remainder of the request information.
     $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-    $request->reply = curl_exec($ch);
     $requests[$i] = $request;
   } // if
   // Release the cURL handler.
