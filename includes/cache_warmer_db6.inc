@@ -93,7 +93,7 @@ function cache_warmer_get_items_drupal6($db_spec = NULL, $latest = 0, $updated =
     else {
       // Use a JOIN there are aliases.
       $result_aliases = db_query(
-        "SELECT src, dst FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.src, 6) = n.nid ORDER BY changed DESC WHERE changed >= '%d'", $updated
+        "SELECT src, dst FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.src, 6) = n.nid WHERE changed >= '%d' ORDER BY changed DESC", $updated
       );
     }
   }
