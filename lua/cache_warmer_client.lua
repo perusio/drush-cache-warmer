@@ -28,8 +28,10 @@
 -- FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 -- DEALINGS IN THE SOFTWARE.
 
+-- This Lua code is part of the cache_warmer.
+
 -- The http component of the socket library.
-local http = require(socket.http)
+local http = require('socket.http')
 
 -- Make the request to the given URIs.
 function cache_warmer_make_request(uri)
@@ -37,9 +39,10 @@ function cache_warmer_make_request(uri)
    local response, status, headers = http.request {
       url = uri,
       method = 'HEAD',
+      -- Use a different User-Agent.
+      headers = { ['user-agent'] = 'Nginx Cache Warmer' },
       redirect = true -- follow redirects
                                                   }
-
    return response, status, headers
 end -- cache_warmer_make_request
 
