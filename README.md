@@ -17,7 +17,7 @@ external cache side.
  
 Microcaching can be used with **any** type of site. Be it your
 portfolio or personal blog or a high traffic news site. You have to
-tweak the cache validity (Time To Live TTL) for your site traffic
+tweak the cache validity (or Time To Live: TTL) for your site traffic
 profile.
 
 Although microcaching is particularly useful for Nginx filesystem
