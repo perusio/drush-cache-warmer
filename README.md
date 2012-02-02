@@ -12,7 +12,7 @@ instead use
 [microcaching](http://fennb.com/microcaching-speed-your-app-up-250x-with-no-n).
 
 Dealing with the expiration logic is messy and inefficient it requires
-additional work be it from the drupal side of things, be it from the
+additional work, be it from the drupal side of things, be it from the
 external cache side.
  
 Microcaching can be used with **any** type of site. Be it your
@@ -23,7 +23,7 @@ profile.
 Although microcaching is particularly useful for the Nginx filesystem
 based cache it can be used with other caching systems like Varnish.
 
-It can be use also for **priming** any type of external cache.
+It can be used also for **priming** any type of external cache.
 
 ## How it works
 
@@ -33,12 +33,12 @@ The drush command is quite light, it performs a drush bootstrap up to
 is fresh according to a given criteria.
 
 As example consider that we want to hit the lastest 300 nodes in the
-`http://example.com` and also the URIs listed in *hub pages* specified
-in the `hub_pages.txt` site in **single threaded** mode.
+`http://example.com` site plus the URIs listed in *hub pages* file
+`hub_pages.txt` site in **single threaded** mode.
 
     drush cache-warmer --latest-n=300 --hub-pages-file=hub_pages.txt http://example.com
     
-If instead we wanted all the nodes updated in the last 2 days we do:
+If instead we wanted to hit the URIs for all the nodes updated in the last 2 days we do:
 
     drush cache-warmer --updated-last='-2 days' --hub-pages-file=hub_pages.txt http://example.com 
     
@@ -63,9 +63,9 @@ or **parallel**. Parallel means that the requests are made in
 **parallel**, i.e., simultaneously.
 
 The single threaded mode uses PHP
-[cURL](http://php.net/manual/en/book.curl.php) extension.
+[cURL](http://php.net/manual/en/book.curl.php) extension only.
 
-NOte that in order to use 
+Note that in order to use 
 [drupal_http_request](http://api.drupal.org/api/drupal/includes--common.inc/function/drupal_http_request/7)
 requires a higher level of boostrap than `BOOTSTRAP_DRUPAL_DATABASE`
 hence it would make `cache_warmer` less performant. Hence the option
@@ -73,7 +73,7 @@ for cURL which is pretty much standard everywhere when we're
 considering a dependable standards observing HTTP client library.
 
 In **single-threaded** mode the request are made **sequentially**,
-i.e, the URIs are hit one after the other. Hence each request
+i.e, the URIs are hit one after the other. Hence in each request cURL
 **blocks** up until it either **times out** or it gets a response. You
 can specify the timeout that cURL uses through the `--timeout`
 option. To specify a timeout of 15 seconds specify
@@ -87,9 +87,9 @@ in parallel do:
 
     drush cache-warmer --updated-last='-2 days' --parallel=20 --crawler-service-uri=http://crawl.example.com/cache-warmer --timeout=15 --hub-pages-file=hub_pages.txt http://example.com 
 
-There's a **new** option `--crawler-service-uri` that specifies the
-URI if the **crawler** to be used for hitting the list of URIs in
-batches of 20, i.e., making 20 parallel requests.
+As you can see there's a **new** option `--crawler-service-uri` that
+specifies the URI if the **crawler** to be used for hitting the list
+of URIs in batches of 20, i.e., making 20 parallel requests.
 
 The parallel crawler is implemented as a web service allowing for the
 crawler to be pluggable. There's a *default* crawler provided relying
@@ -134,9 +134,9 @@ library.
 
 Hub pages are pages in your site that function as a hub for accessing
 content. For example if you have a page for each taxonomy term you may
-specify some taxonomy term pages. Here's a simple **hub pages**
-file. It's just a text file with a URI relative to the base URI of the
-site to be hit by the crawler.
+specify some taxonomy term pages in hub pages file. Here's a simple
+**hub pages** file. It's just a text file with a URI relative to the
+base URI of the site to be hit by the crawler.
 
     <front>
     foobar/term1
@@ -220,8 +220,8 @@ behavior with the option `--no-aliases`.
 The parallel mode works by POSTing the URIs to be hit in a form. cURL
 obeys the standards and sends a `Expect: 100-continue` header to the
 server when the POST data has a size above 1024 bytes. The server
-should reply with a 100 status code thus instructing cURL to go ahead
-and send the POST data.
+should reply with a `100` status code thus instructing cURL to go
+ahead and send the POST data.
 
 Therefore you could see a bunch of 100 status in the JSON array
 containing the responses of the crawler. That's how it should be. If
@@ -237,19 +237,20 @@ the command in the future.
 
 [Vixie's](https://en.wikipedia.org/wiki/Vixie_cron#Modern_versions)
 cron is the *default* cron on most UNIX flavours. Unfortunately not
-content with having an abstruse syntax it's also very imprecise. The
-smallest time unit is one minute and there's no certainty that a job
-will be triggered precisely in the exact second of the minute, i.e.,
-if now the job is triggered at the 10 second mark of the current
-minute, there's no garantuee that the next minute trigger will happen
-also at the 10 second mark.
+happy with only having an abstruse syntax it's also very
+imprecise. The smallest time unit is one minute and there's no
+certainty that a job will be triggered precisely in the exact second
+of the minute, i.e., if now the job is triggered at the 10 second mark
+of the current minute, there's no garantuee that the next minute
+trigger will happen also at the 10 second mark.
 
-For greater precision and an expressive language for expressing jobs
-there's a Scheme based scheduler
-[mcron](http://www.gnu.org/software/mcron/) that has **second**
+For greater precision and an **expressive** language for scheduling
+jobs there's the Scheme (Guile) based scheduler
+[mcron](http://www.gnu.org/software/mcron/), that has **second**
 precision.
 
-You can even use the abstruse syntax with it if you prefer.
+You can even use the abstruse Vixie's cron syntax with it if you
+prefer.
 
 ## Microcaching configuration for Drupal
 
