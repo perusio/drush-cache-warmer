@@ -20,8 +20,8 @@ portfolio or personal blog or a high traffic news site. You have to
 tweak the cache validity (or Time To Live: TTL) for your site traffic
 profile.
 
-Although microcaching is particularly useful for Nginx filesystem
-based cache it can be used with other caching systems like Varnish. 
+Although microcaching is particularly useful for the Nginx filesystem
+based cache it can be used with other caching systems like Varnish.
 
 It can be use also for **priming** any type of external cache.
 
@@ -43,9 +43,9 @@ If instead we wanted all the nodes updated in the last 2 days we do:
     drush cache-warmer --updated-last='-2 days' --hub-pages-file=hub_pages.txt http://example.com 
     
 The `--updated-last` option accepts its argument as an integer
-representing the **number of seconds** to go back, e.g.,
-`--updated-last=3600` means the content updated in the last hour. It
-accepts also strings in
+representing the **number of seconds** ago the content was updated,
+e.g., `--updated-last=3600` means the content updated in the last
+hour. It accepts also strings in
 [`strotime`](http://php.net/manual/en/function.strtotime.php)
 format. Hence the above `-2 days` (latest 48 hours).
 
@@ -54,7 +54,7 @@ The only command argument is the base URI of the site to be hit.
 If you specify **both** a number of nodes through the `--latest-n`
 option and a time range through the `--updated-last` option. The one
 returning the most number of items will be used. Note that this
-involves doing **subqueries** hence is less efficient in SQL terms.
+involves doing **sub-queries** hence is less efficient in SQL terms.
 
 ## Single threaded and Parallel operating modes
 
@@ -65,7 +65,7 @@ or **parallel**. Parallel means that the requests are made in
 The single threaded mode uses PHP
 [cURL](http://php.net/manual/en/book.curl.php) extension.
 
-The usage of
+NOte that in order to use 
 [drupal_http_request](http://api.drupal.org/api/drupal/includes--common.inc/function/drupal_http_request/7)
 requires a higher level of boostrap than `BOOTSTRAP_DRUPAL_DATABASE`
 hence it would make `cache_warmer` less performant. Hence the option
@@ -92,17 +92,17 @@ URI if the **crawler** to be used for hitting the list of URIs in
 batches of 20, i.e., making 20 parallel requests.
 
 The parallel crawler is implemented as a web service allowing for the
-crawler to be pluggable. There's a *default* crawler provided relies
+crawler to be pluggable. There's a *default* crawler provided relying
 on Nginx Embedded Lua module
 [`ngx.location.capture_multi`](http://wiki.nginx.org/HttpLuaModule#ngx.location.capture_multi)
 directive, that allows to make an arbitrary number of requests in a non-blocking
 way using Nginx event driven architecture coupled with Lua speed.
 
 The focus is on **speed** and **simplicity**. The limit of the
-parallelism will be at the OS and network level and not in any
-way inherent to this command. You can make **1000** requests in
-parallel if you wish. The limiting will be the either at the network
-level (the network) gets saturated or your drupal site cannot cope
+parallelism will be at the OS and network level and not in any way
+inherent to this command. You can make **1000** requests in parallel
+if you wish. The limiting factors will be the either at the network
+level (the network gets saturated) or your drupal site cannot cope
 with such a number of simultaneous requests.
 
 ## Requirements
@@ -122,9 +122,9 @@ This requires to either code your own parallel crawler or to have
 In Debian, for example, this module is available in the
 [nginx-extras](http://packages.debian.org/sid/nginx-extras). I provide
 a *bleeding edge* Nginx [debian](http://debian.perusio.net) package
-that includes this module and a few more common while not including
-any mail related modules. Other option is for you to build your own
-nginx package or binary.
+that includes this module and a few less common ones while not
+including mail related modules. Other option is for you to build your
+own nginx package or binary.
 
 It requires the
 [Lua Socket](http://w3.impa.br/~diego/software/luasocket/home.html)
@@ -143,7 +143,7 @@ site to be hit by the crawler.
     foobar/term2
     featured/users
 
-`<front>` means your site front page. Where hitting the hub pages with
+`<front>` means your site front page. We're hitting the hub pages with
 URIs `/foobar/term1`, `/foobar/term2` and `/featured/users`. Note that
 each URI is **always** relative to the base URI of the site and are
 specified **always without** leading slash.
@@ -152,9 +152,9 @@ specified **always without** leading slash.
 
 By default the crawler assumes that you're using clean URIs with
 aliases. Usually you run something like
-[pathauto](http://drupal.org/project/pathauto). If your site uses no
-aliases you can disable the crawler default behavior with the option
-`--no-aliases`.
+[pathauto](http://drupal.org/project/pathauto) on your drupal site. If
+your site doesn't use aliases you can disable the crawler default
+behavior with the option `--no-aliases`.
 
 ## Installation and Usage: Single threaded mode 
 
@@ -233,6 +233,24 @@ Here's a [gist](https://gist.github.com/1724301) with the option you
 need to add to the command. I might consider making it an option to
 the command in the future.  
 
+## Scheduling the cache warmer with precision
+
+[Vixie's](https://en.wikipedia.org/wiki/Vixie_cron#Modern_versions)
+cron is the *default* cron on most UNIX flavours. Unfortunately not
+content with having an abstruse syntax it's also very imprecise. The
+smallest time unit is one minute and there's no certainty that a job
+will be triggered precisely in the exact second of the minute, i.e.,
+if now the job is triggered at the 10 second mark of the current
+minute, there's no garantuee that the next minute trigger will happen
+also at the 10 second mark.
+
+For greater precision and an expressive language for expressing jobs
+there's a Scheme based scheduler
+[mcron](http://www.gnu.org/software/mcron/) that has **second**
+precision.
+
+You can even use the abstruse syntax with it if you prefer.
+
 ## Microcaching configuration for Drupal
 
 Configuring Nginx for microcaching is a little beyond the scope of
@@ -246,8 +264,10 @@ that includes microcaching for both anonymous and authenticated users.
     [`cosocket`](http://wiki.nginx.org/HttpLuaModule#ngx.socket.tcp)
     and thus create **non-blocking** sockets from within Nginx and
     thus avoid the Lua Socket library dependence.
-    
- 2. Add a script for doing graphical analysis of the crawler responses.   
+ 
+ 2. Add `mcron` configuration example.
+ 
+ 3. Add a script for doing graphical analysis of the crawler responses.   
 
- 3. Benchmark this approach against more *usual* approaches to caching
+ 4. Benchmark this approach against more *usual* approaches to caching
     like using [Boost](http://drupal.org/project/boost) for example.
