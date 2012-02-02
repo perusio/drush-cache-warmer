@@ -30,15 +30,15 @@ function cache_warmer_get_items_drupal6_both($db_spec = NULL,
   $items_latest = array();
   $items_updated = array();
 
-  $result_latest = db_query_range('SELECT nid FROM {node} ORDER BY changed DESC', 0, $latest);
+  $result_latest = db_query_range('SELECT nid FROM {node} WHERE status = 1 ORDER BY changed DESC', 0, $latest);
   $num_latest = db_result(
-    db_query_range('SELECT COUNT(nid) FROM {node} ORDER BY changed DESC', 0, $latest)
+    db_query_range('SELECT COUNT(nid) FROM {node} WHERE status = 1 ORDER BY changed DESC', 0, $latest)
   );
   $result_updated = db_query(
-    "SELECT nid FROM {node} ORDER BY changed DESC WHERE changed <= '%d'", $updated
+    "SELECT nid FROM {node} WHERE changed <= '%d' AND status = 1 ORDER BY changed DESC ", $updated
   );
   $num_updated = db_result(
-    db_query("SELECT COUNT(nid) FROM {node} ORDER BY changed DESC WHERE changed >= '%d'", $updated)
+    db_query("SELECT COUNT(nid) FROM {node} WHERE status = 1 AND changed >= '%d' ORDER BY changed DESC", $updated)
   );
   // Whichever is greater is used.
   $result = $num_updated > $num_latest ? $result_updated : $result_latest;
@@ -88,24 +88,24 @@ function cache_warmer_get_items_drupal6($db_spec = NULL, $latest = 0, $updated =
   elseif ($updated > 0) {
     // If no aliases are used then just get the node IDs.
     if ($no_aliases) {
-      $result = db_query("SELECT nid from {node} WHERE changed >= '%d' ORDER BY changed DESC", $updated);
+      $result = db_query("SELECT nid from {node} WHERE status = 1 AND changed >= '%d' ORDER BY changed DESC", $updated);
     }
     else {
       // Use a JOIN there are aliases.
       $result_aliases = db_query(
-        "SELECT src, dst FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.src, 6) = n.nid WHERE changed >= '%d' ORDER BY changed DESC", $updated
+        "SELECT src, dst FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.src, 6) = n.nid WHERE status = 1 AND changed >= '%d' ORDER BY changed DESC", $updated
       );
     }
   }
   else {
     if ($no_aliases) {
       // If no aliases are used then just get the node IDs.
-      $result = db_query_range("SELECT nid from {node} ORDER BY changed DESC", 0, $latest);
+      $result = db_query_range("SELECT nid from {node} WHERE status = 1 ORDER BY changed DESC", 0, $latest);
     }
     else {
       // Use a JOIN if there are aliases.
       $result_aliases = db_query_range(
-        "SELECT src, dst FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.src, 6) = n.nid ORDER BY changed DESC", 0, $latest
+        "SELECT src, dst FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.src, 6) = n.nid WHERE status = 1 ORDER BY changed DESC", 0, $latest
       );
     }
   }

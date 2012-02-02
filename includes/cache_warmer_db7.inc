@@ -31,9 +31,10 @@ function cache_warmer_get_items_drupal7_both($db_spec = NULL,
   $items_updated = array();
 
   $items_latest = db_query_range(
-    'SELECT nid FROM {node} n ORDER BY changed DESC', 0, $latest)->fetchAll();
-  $items_updated = db_query('SELECT nid FROM {node} n WHERE changed >= :changed ORDER BY changed DESC ',
-                            array(':changed' => $updated))->fetchAll();
+    'SELECT nid FROM {node} n WHERE status = 1 ORDER BY changed DESC', 0, $latest)->fetchAll();
+  $items_updated = db_query(
+    'SELECT nid FROM {node} n WHERE status = 1 AND changed >= :changed ORDER BY changed DESC ',
+    array(':changed' => $updated))->fetchAll();
 
   // Whichever is greater is used.
   $items = count($items_updated) > count($items_latest) ? $items_updated : $items_latest;
@@ -84,24 +85,26 @@ function cache_warmer_get_items_drupal7($db_spec = NULL, $latest = 0, $updated =
   elseif ($updated > 0) {
     // If no aliases are used then just get the node IDs.
     if ($no_aliases) {
-      $result = db_query('SELECT nid FROM {node} n WHERE changed >= :changed ORDER BY changed DESC ',
-                         array(':changed' => $updated))->fetchAll();
+      $result = db_query(
+        'SELECT nid FROM {node} n WHERE status = 1 AND changed >= :changed ORDER BY changed DESC ',
+        array(':changed' => $updated))->fetchAll();
     }
     else {
       // Use a JOIN there are aliases.
       $pairs = db_query(
-        'SELECT source, alias FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.source, 6) = n.nid WHERE changed >= :changed ORDER BY changed DESC',
+        'SELECT source, alias FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.source, 6) = n.nid WHERE status = 1 AND changed >= :changed ORDER BY changed DESC',
         array(':changed' => $updated))->fetchAllKeyed();
     }
   }
   else {
     if ($no_aliases) {
       // If no aliases are used then just get the node IDs.
-      $result = db_query_range('SELECT nid FROM {node} n ORDER BY changed DESC', 0, $latest)->fetchAll();
+      $result = db_query_range(
+        'SELECT nid FROM {node} n WHERE status = 1 ORDER BY changed DESC', 0, $latest)->fetchAll();
     }
     else {
       // Use a JOIN if there are aliases.
-      $pairs = db_query_range('SELECT source, alias FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.source, 6) = n.nid ORDER BY changed DESC', 0, $latest)
+      $pairs = db_query_range('SELECT source, alias FROM {url_alias} a INNER JOIN {node} n ON SUBSTR(a.source, 6) = n.nid WHERE status = 1 ORDER BY changed DESC', 0, $latest)
         ->fetchAllKeyed();
     }
   }
