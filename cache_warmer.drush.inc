@@ -451,12 +451,11 @@ function cache_warmer_execute($base_uri = '') {
   // Crawling the given URIs.
   if ($parallel == 0) {
     // cURL invocation for single threaded mode.
-    return json_encode(cache_warmer_crawl_single($base_url, $items, $hub_pages, $timeout));
-
+    return json_encode(cache_warmer_crawl_single($base_url, $items, $hub_pages, $timeout)) . "\n";
   }
   else {
     // cURL invocation for parallel mode. (POST to Lua location.)
     return json_encode(cache_warmer_crawl_multiple($base_url, $items, $hub_pages,
-                                                   $timeout, $parallel, $crawler_service_uri));
+                                                   $timeout, $parallel, $crawler_service_uri)) . "\n";
   }
 } // cache_warmer_execute
