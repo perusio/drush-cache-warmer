@@ -82,8 +82,7 @@ option. To specify a timeout of 15 seconds specify
     drush cache-warmer --updated-last='-2 days' --timeout=15 --hub-pages-file=hub_pages.txt http://example.com 
 
 In parallel mode the requests are made in parallel in a specified size
-batch. To perform the above request in parallel with **20** requests
-in parallel do:
+batch. To perform the above with **20** requests in parallel batches do:
 
     drush cache-warmer --updated-last='-2 days' --parallel=20 --crawler-service-uri=http://crawl.example.com/cache-warmer --timeout=15 --hub-pages-file=hub_pages.txt http://example.com 
 
