@@ -134,19 +134,20 @@ library.
 
 Hub pages are pages in your site that function as a hub for accessing
 content. For example if you have a page for each taxonomy term you may
-specify some taxonomy term pages in hub pages file. Here's a simple
-**hub pages** file. It's just a text file with a URI relative to the
-base URI of the site to be hit by the crawler.
+specify some taxonomy term pages in the hub pages file. Here's a
+simple **hub pages** file. It's a text file with a URI relative to the
+base URI of the site to be hit by the crawler on each line. The sole
+exception to that rule is the front page which is denoted by `<front>`
 
     <front>
     foobar/term1
     foobar/term2
     featured/users
 
-`<front>` means your site front page. We're hitting the hub pages with
-URIs `/foobar/term1`, `/foobar/term2` and `/featured/users`. Note that
-each URI is **always** relative to the base URI of the site and are
-specified **always without** leading slash.
+Besides the front page, `<front>`, we're also hitting the hub pages
+with URIs `/foobar/term1`, `/foobar/term2` and `/featured/users`. Note
+that each URI is **always** relative to the base URI of the site and
+is specified **always without** leading slash.
 
 ## Aliases and Pathauto
 
@@ -163,7 +164,7 @@ behavior with the option `--no-aliases`.
  
  2. Create your hub pages file.
  
- 3. Specify the necessary options and you're done if just testing or
+ 3. Specify the necessary options and you're done, if just testing or
     priming a cache.
  
  4. For using microcaching in a consistent manner. Create a cronjob
@@ -195,7 +196,7 @@ behavior with the option `--no-aliases`.
     service. There's a suggested config in the config
     subdirectory. Adapt it to your liking.
     
- 4. Specify the necessary options and you're done if just testing or
+ 4. Specify the necessary options and you're done, if just testing or
     priming a cache.
  
  5. For using microcaching in a consistent manner. Create a cronjob
