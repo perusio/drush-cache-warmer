@@ -30,7 +30,7 @@ It can be used also for **priming** any type of external cache.
 The drush command is quite light, it performs a drush bootstrap up to
 `DRUSH_BOOTSTRAP_DRUPAL_DATABASE`, which is equivalent to Drupal's
 `BOOTSTRAP_DRUPAL_DATABASE`, and queries the database for content that
-is fresh according to a given criteria.
+is fresh according to the given criteria.
 
 As example consider that we want to hit the lastest 300 nodes in the
 `http://example.com` site plus the URIs listed in *hub pages* file
