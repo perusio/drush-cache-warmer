@@ -269,7 +269,7 @@ that includes microcaching for both anonymous and authenticated users.
     and thus create **non-blocking** sockets from within Nginx and
     thus avoid the Lua Socket library dependence.
 
- 2. Integrate with [httprl](drupal.org/project/httprl) to provide a
+ 2. Integrate with [httprl](http://drupal.org/project/httprl) to provide a
     purely drupal (PHP) based parallel crawler.
 
  3. Add `mcron` configuration example.
