@@ -193,7 +193,7 @@ behavior with the option `--no-aliases`.
     
  3. Create your custom parallel crawler web service or install Nginx
     and setup a host for functioning as the parallel crawler web
-    service. There's a suggested config in the config
+    service. There's a suggested config in the `config`
     subdirectory. Adapt it to your liking.
     
  4. Specify the necessary options and you're done, if just testing or
