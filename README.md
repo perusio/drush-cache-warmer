@@ -25,6 +25,9 @@ based cache it can be used with other caching systems like Varnish.
 
 It can be used also for **priming** any type of external cache.
 
+Note that as is usual with drush although its tagged `7.x` it works
+with both **drupal 6** and **drupal 7**.
+
 ## How it works
 
 The drush command is quite light, it performs a drush bootstrap up to
@@ -265,8 +268,11 @@ that includes microcaching for both anonymous and authenticated users.
     [`cosocket`](http://wiki.nginx.org/HttpLuaModule#ngx.socket.tcp)
     and thus create **non-blocking** sockets from within Nginx and
     thus avoid the Lua Socket library dependence.
- 
- 2. Add `mcron` configuration example.
+
+ 2. Integrate with [httprl](drupal.org/project/httprl) to provide a
+    purely drupal (PHP) based parallel crawler.
+
+ 3. Add `mcron` configuration example.
  
  3. Add a script for doing graphical analysis of the crawler responses.   
 
