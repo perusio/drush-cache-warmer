@@ -283,7 +283,7 @@ function cache_warmer_execute($base_uri = '') {
   // Crawling the given URIs.
   if ($parallel == 0) {
     // Include the functions for crawling the site.
-    if (function_exists('cache_warmer_crawl_multiple')) {
+    if (!function_exists('cache_warmer_crawl_single')) {
       require_once __DIR__ . '/includes/cache_warmer_crawl_single.inc';
     }
     // cURL invocation for single threaded mode.
@@ -291,7 +291,7 @@ function cache_warmer_execute($base_uri = '') {
   }
   else {
     // Include the functions for crawling the site.
-    if (function_exists('cache_warmer_crawl_multiple')) {
+    if (!function_exists('cache_warmer_crawl_multiple')) {
       require_once __DIR__ . '/includes/cache_warmer_crawl_multiple.inc';
     }
     // cURL invocation for parallel mode. (POST to Lua location.)
