@@ -178,174 +178,6 @@ function cache_warmer_check_arguments($base_uri = '', $latest = 0 , $updated = 0
 } // cache_warmer_check_arguments
 
 /**
- * Crawls the site using the given list of URIs using a single thread.
- *
- * @param $base_uri string
- *   The base URI of the site to be crawled.
- * @param $uris array
- *   The list of URIs to be crawled.
- * @param $timeout integer
- *   The timeout in seconds.
- *
- * @return array
- *   Array containing the status codes and request times for each crawled URI.
- *
- */
-function cache_warmer_crawl_single($base_uri = '', $uris = array(), $hub_pages = '', $timeout) {
-
-  $requests = array();
-
-  $ch = curl_init();
-  // cURL request basic options.
-  curl_setopt_array($ch,
-                    array(CURLOPT_NOBODY => TRUE, // HEAD request.
-                          CURLOPT_TIMEOUT => $timeout,
-                    ));
-  // We first deal with the hub pages.
-  if (!empty($hub_pages)) {
-    $fp = fopen($hub_pages, 'r'); // get the handle
-    if (!$fp) {
-      drush_set_error(CACHE_WARMER_CANNOT_OPEN_HUBPAGES,
-                      dt('Cannot open the hub pages file.'));
-    }
-    // Crawl the hub pages URIs.
-    while (($line = fgets($fp)) !== FALSE) {
-      $uri = trim($line); // remove white space on both ends
-      // If the uri is '<front>' then it's a special case. The front page.
-      $uri = $uri == '<front>' ? '' : $uri;
-      // Create an object to store the request result.
-      $request = new stdClass();
-      $request->timestamp = $_SERVER['REQUEST_TIME'];
-      curl_setopt($ch, CURLOPT_URL, $base_uri . '/' . $uri);
-      curl_exec($ch);
-      $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-      $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-      $requests[$uri] = $request;
-    }
-    // Close the file handle.
-    fclose($fp);
-  }
-  // Main loop. We store the total request time and status.
-  foreach ($uris as $uri) {
-    // Create an object to store the request result.
-    $request = new stdClass();
-    $request->timestamp = $_SERVER['REQUEST_TIME'];
-    curl_setopt($ch, CURLOPT_URL, $base_uri . '/' . $uri);
-    curl_exec($ch);
-    $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-    $requests[$uri] = $request;
-  }
-  // Release the cURL handler.
-  curl_close($ch);
-
-  return $requests;
-} // cache_warmer_crawl_single
-
-/**
- * Crawls the site using the given list of URIs using parallel requests.
- *
- * @param $base_uri string
- *   The base URI of the site to be crawled.
- * @param $uris array
- *   The list of URIs to be crawled.
- * @param $timeout integer
- *   The timeout in seconds.
- * @param $parallel string
- *   The number of requests to issue simultaneously.
- * @param $crawler_uri string
- *   The URI of the web service that implements the parallel crawl.
- * @return array
- *   Array containing the responses,
- *   status codes and request times for each crawled URI.
- *
- */
-function cache_warmer_crawl_multiple($base_uri = '', $uris = array(), $hub_pages = '',
-                                     $timeout, $parallel, $crawler_uri) {
-
-  // Getting the number of URIs to be processed each time.
-  $hub_pages_uris = explode("\n", file_get_contents($hub_pages));
-  // Remove the last element. It's a '\n'.
-  $temp = array_pop($hub_pages_uris); // temp var necessary for PHP :(
-  $m = count($hub_pages_uris); // number of hub pages
-  $n = count($uris); // number of URIs
-  $rem = ($n + $m) % $parallel;
-  $steps = ($n + $m - $rem) / $parallel; // integer division
-  // Getting the timeout of each step. Multiply each request timeout by the
-  // number of simultaneous requests.
-  $step_timeout = $timeout * $steps;
-
-  // Create a new array with shifted elements.
-  $all_uris = array();
-  // First the hub pages.
-  for ($i = 0; $i < $m; $i++) {
-    // The front page is a special case.
-    $all_uris[$i] = $hub_pages_uris[$i] != '<front>' ? $hub_pages_uris[$i] : '';
-  }
-
-  // The other URIs after.
-  $uris_keys = array_keys($uris);
-  for ($i = 0; $i < $n; $i++) {
-    $all_uris[$i + $m] = $uris[$uris_keys[$i]];
-  }
-
-  $ch = curl_init();
-  // cURL request basic options.
-  curl_setopt_array($ch,
-                    array(CURLOPT_POST => TRUE, // POST request.
-                          CURLOPT_TIMEOUT => $step_timeout,
-                          CURLOPT_RETURNTRANSFER => TRUE,
-                          CURLOPT_URL => $crawler_uri,
-                    ));
-
-  // Main loop posting the requests according to the given parallel processes.
-  $post_data = array();
-  $requests = array();
-  for ($i = 0; $i < $steps; $i++) {
-    // Fill in the POST data array.
-    for ($j = 0; $j < $parallel; $j++) {
-      $post_data["data$j"] = $all_uris[$j + ($i * $parallel)];
-    }
-    // Send the base URI as a specific field.
-    $post_data['base_uri'] = $base_uri;
-    // Create an object to store the request result.
-    $request = new stdClass();
-    $request->timestamp = $_SERVER['REQUEST_TIME'];
-    // Make the POST request.
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data, '', '&'));
-    $request->reply = curl_exec($ch);
-    // Get the remainder of the request information.
-    $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-    $requests[$i] = $request;
-  }
-
-  // The remainder of the URIs to be hit.
-  if ($rem > 0) {
-    $post_data = array();
-    for ($k = 0; $k < $rem; $k++) {
-      $post_data["data$k"] = $all_uris[$k + $steps * $parallel];
-    }
-    // Send the base URI as a specific field.
-    $post_data['base_uri'] = $base_uri;
-    // Create an object to store the request result.
-    $request = new stdClass();
-    $request->timestamp = $_SERVER['REQUEST_TIME'];
-    // Make the POST request.
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data, '', '&'));
-    $request->reply = curl_exec($ch);
-    // Get the remainder of the request information.
-    $request->status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $request->time = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
-    $requests[$i] = $request;
-  } // if
-  // Release the cURL handler.
-  curl_close($ch);
-
-  return $requests;
-} // cache_warmer_crawl_multiple
-
-/**
  * Crawl the URIs of the site specified starting at the given base URI.
  *
  * @param $base_uri string
@@ -450,10 +282,18 @@ function cache_warmer_execute($base_uri = '') {
 
   // Crawling the given URIs.
   if ($parallel == 0) {
+    // Include the functions for crawling the site.
+    if (function_exists('cache_warmer_crawl_multiple')) {
+      require_once __DIR__ . '/includes/cache_warmer_crawl_single.inc';
+    }
     // cURL invocation for single threaded mode.
     return json_encode(cache_warmer_crawl_single($base_url, $items, $hub_pages, $timeout)) . "\n";
   }
   else {
+    // Include the functions for crawling the site.
+    if (function_exists('cache_warmer_crawl_multiple')) {
+      require_once __DIR__ . '/includes/cache_warmer_crawl_multiple.inc';
+    }
     // cURL invocation for parallel mode. (POST to Lua location.)
     return json_encode(cache_warmer_crawl_multiple($base_url, $items, $hub_pages,
                                                    $timeout, $parallel, $crawler_service_uri)) . "\n";
