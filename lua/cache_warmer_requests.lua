@@ -32,9 +32,9 @@
 -- First we grab the POST data.
 ngx.req.read_body() -- read the request body
 local post_data = ngx.req.get_post_args() -- capture the arguments.
-local base_uri = post_data['base_uri']
+local base_uri = post_data['base_uri'] -- grab the base URI
 
--- Release that entry from the POST data table.
+-- Release the base URI entry from the POST data table.
 post_data['base_uri'] = nil
 
 local requests = {} -- requests table
@@ -47,7 +47,7 @@ end -- build_req_uri
 -- Loop over the post_data table (contains the URIs to be hit).
 for _, u in pairs(post_data) do
    -- All requests are HEAD requests.
-   table.insert(requests, { build_req_uri(base_uri, u),{ method = ngx.HTTP_HEAD }})
+   table.insert(requests, { build_req_uri(base_uri, u), { method = ngx.HTTP_HEAD }})
 end
 
 -- Issue the requests and store the responses in a table.
