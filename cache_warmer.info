@@ -1,0 +1,11 @@
+name = Cache Warmer
+description = A Drush command that hits a set of URIs of a drupal site.
+
+core = 7.x
+package = Performance and Scalability
+
+files[] = cache_warmer.module
+files[] = cache_warmer.drush.inc
+files[] = includes/cache_warmer_crawl_multiple.inc
+files[] = includes/cache_warmer_crawl_single.inc
+files[] = includes/cache_warmer_db7.inc
