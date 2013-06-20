@@ -45,6 +45,9 @@ function cache_warmer_drush_command() {
     'parallel' => 'The number of requests to issue in parallel (requires Nginx with Lua)',
     'crawler-service-uri' => 'The URI of the crawler web service',
     'no-aliases' => 'Do not use aliases when hitting the URIs',
+    'username' => 'The username with which to log into Drupal, if running in serial mode. Anonymous access is the default. If set in parallel mode, this option will be ignored.',
+    'password' => 'The password associated with the specified username. See "--username".',
+    'trace' => 'Output debugging information.',
   );
   // The provided commands.
   $items['cache-warmer'] = array(
@@ -57,6 +60,8 @@ function cache_warmer_drush_command() {
       => 'Hit the URIs for the 300 content items that where updated last, crawl the hub pages listed in hub_pages.txt for the example.com site with a timeout of 5 seconds for each request.',
       'drush cache-warmer --update-last="-4 hours" --timeout= --hub-pages-file=hpages.txt --timeout=10 http://foobar.com.'
       => 'Hit the URIs for the content items updated in the last 4 hours, crawl the hub pages listed in hub_pages.txt for the foobar.com site with a timeout of 10 seconds.',
+      'drush cache-warmer --hub-pages-file=hub_pages.txt --username=foo --password=bar http://example.com'
+      => 'Crawl only the hub pages listed in hub_pages.txt, with no timeout, logging as as user "foo" with password "bar" for the example.com site.',
     ),
     'options' => $options,
     'aliases' => array('cw'),
@@ -228,25 +233,47 @@ function cache_warmer_execute($base_uri = '') {
   $no_aliases = drush_get_option('no-aliases') ? TRUE : FALSE;
   // Trace the execution for debugging purposes.
   $trace = drush_get_option('trace') ? TRUE : FALSE;
+
+  // Get the credentials for logging in, if available.
+  $username = drush_get_option('username');
+  $password = drush_get_option('password');
+  if (empty($username) && empty($password)) {
+    $credentials = array();
+  }
+  else if (!empty($username) && !empty($password)) {
+    $credentials = array('username' => $username, 'password' => $password);
+  }
+  else {
+    return drush_set_error(
+      CACHE_WARMER_MISSING_USERNAME_OR_PASSWORD_FAIL,
+      dt('Either both username and password must be set, or neither.')
+    );
+  }
+
   // Check the arguments.
   $base_url = cache_warmer_check_arguments($base_uri, $latest, $updated, $hub_pages);
   if (!$base_url) {
     drush_set_error(CACHE_WARMER_NO_BASE_URI_FAIL,
                     dt('Cannot determine base URI to be crawled.'));
   }
+
   // Print the arguments (debug).
   if ($trace) {
     drush_print('Arguments');
-    drush_print_r(array('latest-n' => $latest,
-                        'updated-last' => $updated,
-                        'hub-pages-file' => $hub_pages,
-                        'base-uri' => $base_url,
-                        'timeout' => $timeout,
-                        'parallel' => $parallel,
-                        'crawler-service-uri' => $crawler_service_uri,
-                        'trace' => $trace,
-                  ));
+    drush_print_r(array(
+      'latest-n' => $latest,
+      'updated-last' => $updated,
+      'hub-pages-file' => $hub_pages,
+      'base-uri' => $base_url,
+      'timeout' => $timeout,
+      'parallel' => $parallel,
+      'crawler-service-uri' => $crawler_service_uri,
+      'trace' => $trace,
+      'username' => !empty($credentials) ? $credentials['username'] : '',
+      'password' => !empty($credentials) ? $credentials['password'] : '',
+    ));
   }
+
   // Getting the URIs to be hit. First we get the drupal major version.
   $items = array();
   $drupal_version = drush_drupal_major_version();
@@ -287,7 +314,7 @@ function cache_warmer_execute($base_uri = '') {
       require_once __DIR__ . '/includes/cache_warmer_crawl_single.inc';
     }
     // cURL invocation for single threaded mode.
-    return json_encode(cache_warmer_crawl_single($base_url, $items, $hub_pages, $timeout)) . "\n";
+    return json_encode(cache_warmer_crawl_single($base_url, $items, $hub_pages, $timeout, $credentials)) . "\n";
   }
   else {
     // Include the functions for crawling the site.
@@ -299,3 +326,4 @@ function cache_warmer_execute($base_uri = '') {
                                                    $timeout, $parallel, $crawler_service_uri)) . "\n";
   }
 } // cache_warmer_execute
+
